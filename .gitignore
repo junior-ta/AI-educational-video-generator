@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.pkl
+*.egg-info/
+dist/
+build/
+
+# Virtual env
+.venv/
+venv/
+ENV/
+env/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Env vars / secrets
+.env
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Chroma / databases (usually generated)
+chroma/
+chromadb/
+*.sqlite
+*.db
+
+# Audio artifacts (optional)
+*.wav
+*.mp3
+*.m4a
+*.flac
+
+# Node (if any)
+node_modules/
