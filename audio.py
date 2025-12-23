@@ -15,7 +15,7 @@ VOICE_EXPERT = "en-US-AriaNeural"
 #VOICE_EXPERT = "en-US-EricNeural" 
 
 # Voices Adjustments
-RATE_SKEPTIC = "+12%"   # Speed up for energy
+RATE_SKEPTIC = "+20%"   # Speed up for energy
 PITCH_EXPERT = "-2Hz"   # Lower slightly for authority
 
 async def generate_segment(text, speaker, index):
@@ -32,10 +32,10 @@ async def generate_segment(text, speaker, index):
     if speaker == "Skeptic":
         voice = VOICE_SKEPTIC
         rate = RATE_SKEPTIC
-        pitch = "+0Hz" 
+        pitch = "+5Hz" 
     else:
         voice = VOICE_EXPERT
-        rate = "+0%"   
+        rate = "+10%"   
         pitch = PITCH_EXPERT
 
     # Generate Audio using 'communicate' to hit the Edge TTS API
@@ -53,8 +53,8 @@ async def generate_audio(script_json):
     temp_files = []
     combined_audio = AudioSegment.empty()
     
-    # 300ms Silence to insert between speakers
-    silence = AudioSegment.silent(duration=200) 
+    # 50ms Silence to insert between speakers
+    #silence = AudioSegment.silent(duration=50) 
 
     # 1. Generate all clips
     l=0
@@ -74,8 +74,11 @@ async def generate_audio(script_json):
             clip = AudioSegment.from_mp3(filename)
             
             # Add to main track with spacing
-            combined_audio += clip + silence
+            #combined_audio += clip + silence
+            combined_audio += clip 
             
+
+            l+=1
         except Exception as e:
             print(f"Error generating line {i}: {e}")
 
@@ -97,17 +100,17 @@ async def generate_audio(script_json):
 def create_podcast_audio(script_json):
     asyncio.run(generate_audio(script_json))
 
-# # --- Testing---
-# if __name__ == "__main__":
-#     with open("text.json", "r", encoding="utf-8") as f:
-#         data = json.load(f)
+# --- Testing---
+if __name__ == "__main__":
+    with open("text.json", "r", encoding="utf-8") as f:
+        data = json.load(f)
 
-#     test_script = data
-#     # [
-#     #     {"speaker": "Skeptic", "text": "Wait, so you're telling me this AI actually understands what I'm saying?"},
-#     #     {"speaker": "Expert", "text": "Not exactly 'understands' in the human sense. It predicts the next most likely word based on patterns."},
-#     #     {"speaker": "Skeptic", "text": "That sounds like a fancy autocomplete."},
-#     #     {"speaker": "Expert", "text": "It is! But imagine an autocomplete that has read every book in the library."}
-#     # ]
+    test_script = data
+    # [
+    #     {"speaker": "Skeptic", "text": "Wait, so you're telling me this AI actually understands what I'm saying?"},
+    #     {"speaker": "Expert", "text": "Not exactly 'understands' in the human sense. It predicts the next most likely word based on patterns."},
+    #     {"speaker": "Skeptic", "text": "That sounds like a fancy autocomplete."},
+    #     {"speaker": "Expert", "text": "It is! But imagine an autocomplete that has read every book in the library."}
+    # ]
     
-#     create_podcast_audio(test_script)
+    create_podcast_audio(test_script)

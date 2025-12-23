@@ -4,7 +4,7 @@ import stable_whisper
 # --- Configuration ---
 INPUT_AUDIO = "Script_audio.mp3"
 OUTPUT_FILENAME = "Script_captions.ass"
-MODEL_SIZE = "base" # 'tiny', 'base', 'small', 'medium', 'large'
+MODEL_SIZE = "tiny" # 'tiny', 'base', 'small', 'medium', 'large'
 
 def generate_subtitles(audio_path=INPUT_AUDIO):
     """
@@ -25,11 +25,11 @@ def generate_subtitles(audio_path=INPUT_AUDIO):
     result.to_ass(
         OUTPUT_FILENAME,
         karaoke=True,
-        font="Helvetica",
+        font="Montserrat ExtraBold",
         font_size=20,
         # ASS color format is &HAABBGGRR& (Alpha, Blue, Green, Red)
         # &H00FFFF& -> 00 Alpha, FF Blue, FF Green, 00 Red -> Cyan/Yellowish mix
-        highlight_color="&H00FFFF&" 
+        highlight_color="7CFF00" #"&H00FFFF&" 
     )
     
     print(f"Success! Subtitles saved to {OUTPUT_FILENAME}")
