@@ -1,5 +1,6 @@
 import asyncio
 import os
+import json
 import edge_tts
 from pydub import AudioSegment
 
@@ -56,11 +57,13 @@ async def generate_audio(script_json):
     silence = AudioSegment.silent(duration=200) 
 
     # 1. Generate all clips
+    l=0
     for i, line in enumerate(script_json):
         speaker = line.get("speaker")
         text = line.get("text")
         
-        print("...")
+        if l==0 or l%5==0:
+            print("...")
         
         try:
             # Await for generation
@@ -96,11 +99,15 @@ def create_podcast_audio(script_json):
 
 # # --- Testing---
 # if __name__ == "__main__":
-#     test_script = [
-#         {"speaker": "Skeptic", "text": "Wait, so you're telling me this AI actually understands what I'm saying?"},
-#         {"speaker": "Expert", "text": "Not exactly 'understands' in the human sense. It predicts the next most likely word based on patterns."},
-#         {"speaker": "Skeptic", "text": "That sounds like a fancy autocomplete."},
-#         {"speaker": "Expert", "text": "It is! But imagine an autocomplete that has read every book in the library."}
-#     ]
+#     with open("text.json", "r", encoding="utf-8") as f:
+#         data = json.load(f)
+
+#     test_script = data
+#     # [
+#     #     {"speaker": "Skeptic", "text": "Wait, so you're telling me this AI actually understands what I'm saying?"},
+#     #     {"speaker": "Expert", "text": "Not exactly 'understands' in the human sense. It predicts the next most likely word based on patterns."},
+#     #     {"speaker": "Skeptic", "text": "That sounds like a fancy autocomplete."},
+#     #     {"speaker": "Expert", "text": "It is! But imagine an autocomplete that has read every book in the library."}
+#     # ]
     
 #     create_podcast_audio(test_script)
