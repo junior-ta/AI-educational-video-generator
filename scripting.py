@@ -7,7 +7,7 @@ from openai import OpenAI
 # --- Configuration (can be adjusted) ---
 ACTIVE_PROVIDER = "ollama"  #let user decide in streamlit
 
-OLLAMA_MODEL = "llama3"
+OLLAMA_MODEL = "llama3.1"
 OPENAI_MODEL = "gpt-4o-mini"
 
 
@@ -165,3 +165,5 @@ def generate_script(topic, context, max_retries=3):
 #     if script:
 #         print("\n--- Generated Script ---")
 #         print(json.dumps(script, indent=2))
+#     else:
+#         print("failed")

@@ -14,7 +14,7 @@ VOICE_EXPERT = "en-US-AriaNeural"
 #VOICE_EXPERT = "en-US-EricNeural" 
 
 # Voices Adjustments
-RATE_SKEPTIC = "+10%"   # Speed up for energy
+RATE_SKEPTIC = "+12%"   # Speed up for energy
 PITCH_EXPERT = "-2Hz"   # Lower slightly for authority
 
 async def generate_segment(text, speaker, index):
@@ -53,7 +53,7 @@ async def generate_audio(script_json):
     combined_audio = AudioSegment.empty()
     
     # 300ms Silence to insert between speakers
-    silence = AudioSegment.silent(duration=300) 
+    silence = AudioSegment.silent(duration=200) 
 
     # 1. Generate all clips
     for i, line in enumerate(script_json):
@@ -94,13 +94,13 @@ async def generate_audio(script_json):
 def create_podcast_audio(script_json):
     asyncio.run(generate_audio(script_json))
 
-# --- Testing---
-if __name__ == "__main__":
-    test_script = [
-        {"speaker": "Skeptic", "text": "Wait, so you're telling me this AI actually understands what I'm saying?"},
-        {"speaker": "Expert", "text": "Not exactly 'understands' in the human sense. It predicts the next most likely word based on patterns."},
-        {"speaker": "Skeptic", "text": "That sounds like a fancy autocomplete."},
-        {"speaker": "Expert", "text": "It is! But imagine an autocomplete that has read every book in the library."}
-    ]
+# # --- Testing---
+# if __name__ == "__main__":
+#     test_script = [
+#         {"speaker": "Skeptic", "text": "Wait, so you're telling me this AI actually understands what I'm saying?"},
+#         {"speaker": "Expert", "text": "Not exactly 'understands' in the human sense. It predicts the next most likely word based on patterns."},
+#         {"speaker": "Skeptic", "text": "That sounds like a fancy autocomplete."},
+#         {"speaker": "Expert", "text": "It is! But imagine an autocomplete that has read every book in the library."}
+#     ]
     
-    create_podcast_audio(test_script)
+#     create_podcast_audio(test_script)
