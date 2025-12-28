@@ -30,13 +30,13 @@ def patch_ass_style(ass_path: str):
     # - Fontsize ~90 (similar visual scale to reels caption)
     # - Neon green fill (ASS color format is &HAABBGGRR)
     #   #7CFF00 (RGB) -> RR=7C, GG=FF, BB=00 -> &H00 00 FF 7C = &H0000FF7C
-    # - Thick black outline: Outline=8
+    # - black outline thickness: Outline=1
     # - Shadow=0
     # - Alignment=2 bottom-center
     # - MarginV=350 pushes it upward (like your example). Tweak if needed.
     style_block = f"""[V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Reel,Montserrat ExtraBold,60,&H0000FF7C,&H00000000,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,5,0,2,25,25,230,1
+Style: Reel,Montserrat ExtraBold,45,&H0033C9FF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,1,0.5,2,25,25,230,1
 """
 
     # Replace existing style section (from [V4+ Styles] up to before [Events])
@@ -65,6 +65,7 @@ def generate_subtitles(audio_path=INPUT_AUDIO):
 
     print(f"Transcribing {audio_path} (please be patient)...")
     result = model.transcribe(audio_path, regroup=False)  # regroup=False keeps word timing precise
+    result.split_by_length(max_words=5)
 
     # Generate the .ass file (karaoke=True enables word-by-word highlighting)
     # We'll keep font parameters here, but final visual style is enforced by patch_ass_style().
@@ -72,7 +73,7 @@ def generate_subtitles(audio_path=INPUT_AUDIO):
         OUTPUT_FILENAME,
         karaoke=True,
         font="Montserrat ExtraBold",
-        font_size=58,               # scaled for 720x1280
+        font_size=27,               # scaled for 720x1280
         highlight_color="7CFF00",    # karaoke highlight (kept)
     )
 

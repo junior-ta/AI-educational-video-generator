@@ -4,7 +4,7 @@ import stable_whisper
 # --- Configuration ---
 INPUT_AUDIO = "Script_audio.mp3"
 OUTPUT_FILENAME = "Script_captions.ass"
-MODEL_SIZE = "tiny" # 'tiny', 'base', 'small', 'medium', 'large'
+MODEL_SIZE = "base" # 'tiny', 'base', 'small', 'medium', 'large'
 
 def generate_subtitles(audio_path=INPUT_AUDIO):
     """
@@ -20,13 +20,14 @@ def generate_subtitles(audio_path=INPUT_AUDIO):
 
     print(f"Transcribing {audio_path} (please be patient)...")
     result = model.transcribe(audio_path, regroup=False) # regroup=False keeps word timing precise
+    result.split_by_length(max_words=5)
     
     # Generate the .ass file The ('karaoke=True' flag enables the word-by-word highlighting)
     result.to_ass(
         OUTPUT_FILENAME,
         karaoke=True,
         font="Montserrat ExtraBold",
-        font_size=20,
+        font_size=27,
         # ASS color format is &HAABBGGRR& (Alpha, Blue, Green, Red)
         # &H00FFFF& -> 00 Alpha, FF Blue, FF Green, 00 Red -> Cyan/Yellowish mix
         highlight_color="7CFF00" #"&H00FFFF&" 
