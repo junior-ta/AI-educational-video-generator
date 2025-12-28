@@ -69,17 +69,21 @@ class OpenAIClient(ModelProvider):
 #_____________________________________________________________________________________________________________________________________#
 
 SYSTEM_PROMPT = """
-You are a scriptwriter for a tech podcast, about IBM Z mainframes and linuxONE. You must generate a dialogue between two personas based on the provided Topic and Context.
+You are a scriptwriter for a tech podcast, about IBM Z mainframes and linuxONE. You must generate an informal conversation dialogue between two personas based on the provided Topic and Context.
+Avoid commas and periods as much as possible. If you need to put one for grammar purpose, just ignore it.
 
 **The Personas:**
 1. **The Skeptic:** Casual, questioning, slightly cynical. Doesn't buy into hype. Uses simple and gen z language.
-2. **The Expert:** Knowledgeable, patient, factual. Uses analogies to explain complex concepts.
+2. **The Expert:** Knowledgeable, patient, factual. Uses analogies to explain complex concepts. Use  yeah or yup for yess, nah for no when needed to answer questions to make the dialogue feel semi-professional.
 
 **Output Requirements:**
 - You must output VALID JSON only.
 - The format must be a list of objects: [{"speaker": "Skeptic", "text": "..."}, {"speaker": "Expert", "text": "..."}]
 - Do not include any markdown formatting (like ```json). Just the raw JSON.
-- Keep the dialogue engaging and approximately 8-12 exchanges long.
+- Keep the dialogue engaging and approximately 12-16 exchanges long.
+-Use and keep question marks when needed.
+-Hard limit per line: max 1 comma and max 1 period (keep question marks out of this quota.).
+-Before returning JSON, scan every text and remove extra commas and periods (except question marks.).
 """ #system prompt will never change
 
 def get_provider() -> ModelProvider: #when creating streamlit UI, remember to let the user choose the model
@@ -155,15 +159,15 @@ def generate_script(topic, context, max_retries=3):
     return None
 
 
-# if __name__ == "__main__":
-#     # Example Usage
-#     sample_topic = "Quantum Computing"
-#     sample_context = "Quantum computers use qubits which can be in superposition, unlike classical bits."
+if __name__ == "__main__":
+    # Example Usage
+    sample_topic = "IBM Z mainframes and LinuxOne"
+    sample_context = "IBM Z mainframes have 0 down time"
     
-#     script = generate_script(sample_topic, sample_context)
+    script = generate_script(sample_topic, sample_context)
     
-#     if script:
-#         print("\n--- Generated Script ---")
-#         print(json.dumps(script, indent=2))
-#     else:
-#         print("failed")
+    if script:
+        print("\n--- Generated Script ---")
+        print(json.dumps(script, indent=2))
+    else:
+        print("failed")

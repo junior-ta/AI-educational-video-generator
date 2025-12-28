@@ -29,6 +29,7 @@ async def generate_segment(text, speaker, index):
     filename = f"{TEMP_DIR}/segment_{index}_{speaker}.mp3"
     
     # Determine Voice & Settings based on Speaker
+    volume="+5%"
     if speaker == "Skeptic":
         voice = VOICE_SKEPTIC
         rate = RATE_SKEPTIC
@@ -39,7 +40,7 @@ async def generate_segment(text, speaker, index):
         pitch = PITCH_EXPERT
 
     # Generate Audio using 'communicate' to hit the Edge TTS API
-    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, volume=volume)
     await communicate.save(filename)
     
     return filename
