@@ -3,6 +3,7 @@ import os
 import json
 import edge_tts
 from pydub import AudioSegment
+from pydub.silence import detect_nonsilent
 
 # --- Configuration ---
 OUTPUT_FILE = "Script_audio.mp3"
@@ -15,8 +16,15 @@ VOICE_EXPERT = "en-US-AriaNeural"
 #VOICE_EXPERT = "en-US-EricNeural" 
 
 # Voices Adjustments
-RATE_SKEPTIC = "+20%"   # Speed up for energy
-PITCH_EXPERT = "-2Hz"   # Lower slightly for authority
+RATE_SKEPTIC = "+17%"   # Speed up for energy
+PITCH_EXPERT = "+0Hz"   # Lower slightly for authority
+TURN_GAP_MS = 500  
+
+def trim_silence(audio, silence_thresh=-38, chunk_size=10):
+    ns = detect_nonsilent(audio, min_silence_len=chunk_size, silence_thresh=silence_thresh)
+    if not ns:
+        return audio
+    return audio[ns[0][0]:ns[-1][1]]
 
 async def generate_segment(text, speaker, index):
     """
@@ -29,11 +37,11 @@ async def generate_segment(text, speaker, index):
     filename = f"{TEMP_DIR}/segment_{index}_{speaker}.mp3"
     
     # Determine Voice & Settings based on Speaker
-    volume="+5%"
+    volume="+0%"
     if speaker == "Skeptic":
         voice = VOICE_SKEPTIC
         rate = RATE_SKEPTIC
-        pitch = "+5Hz" 
+        pitch = "+3Hz" 
     else:
         voice = VOICE_EXPERT
         rate = "+10%"   
@@ -53,9 +61,6 @@ async def generate_audio(script_json):
     
     temp_files = []
     combined_audio = AudioSegment.empty()
-    
-    # 50ms Silence to insert between speakers
-    #silence = AudioSegment.silent(duration=50) 
 
     # 1. Generate all clips
     l=0
@@ -75,8 +80,8 @@ async def generate_audio(script_json):
             clip = AudioSegment.from_mp3(filename)
             
             # Add to main track with spacing
-            #combined_audio += clip + silence
-            combined_audio += clip 
+            clip = trim_silence(clip)
+            combined_audio += clip + AudioSegment.silent(duration=TURN_GAP_MS)
             
 
             l+=1
