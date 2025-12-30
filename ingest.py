@@ -141,7 +141,7 @@ def parse_pdf_dual_pass(file_bytes):
 
 
     except Exception as e:
-        print (f"Erro parsing {pdf_path}: {e}")
+        print (f"Erro parsing: {e}")
         return None
     
     return full_text
@@ -200,7 +200,7 @@ def process_uploaded_files(uploaded_files):
         # status_log.append(f"Processing {file_name}...")
         
         # Parse (using the new bytes-compatible function)
-        raw_text = parse_pdf_dual_pass(file_bytes, file_name)
+        raw_text = parse_pdf_dual_pass(file_bytes)
         
         if raw_text:
             chunks = chunk_text(raw_text)
@@ -210,13 +210,6 @@ def process_uploaded_files(uploaded_files):
             status_log.append(f"Failed to parse {file_name}.")
             
     return status_log
-
-
-
-
-
-
-
 
 
 

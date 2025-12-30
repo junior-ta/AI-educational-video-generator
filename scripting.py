@@ -47,11 +47,14 @@ class OllamaClient(ModelProvider):
 
 #OpenAI Implementation
 class OpenAIClient(ModelProvider):
-    def __init__(self, model_name=OPENAI_MODEL, api_key=None):
+    def __init__(self, model_name=OPENAI_MODEL, api_key=None, base_url=None):
         if not api_key:
             raise ValueError("OpenAI API Key is required for GPT-4o-mini.")
 
-        self.client = OpenAI(api_key=api_key) #give the user the opportunity to enter his key in streamlit
+        if base_url:
+            self.client = OpenAI(api_key=api_key, base_url=base_url)
+        else:
+            self.client = OpenAI(api_key=api_key)
         self.model_name = model_name
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
