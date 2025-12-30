@@ -8,8 +8,11 @@ OUTPUT_FILENAME = "Script_captions.ass"
 MODEL_SIZE = "tiny"  # 'tiny', 'base', 'small', 'medium', 'large'
 
 # Video resolution (your reel)
-PLAY_RES_X = 464
-PLAY_RES_Y = 832
+PLAY_RES_X = 1080
+PLAY_RES_Y = 1920
+
+# PLAY_RES_X = 720
+# PLAY_RES_Y = 1280
 
 def patch_ass_style(ass_path: str):
     """
@@ -34,9 +37,15 @@ def patch_ass_style(ass_path: str):
     # - Shadow=0
     # - Alignment=2 bottom-center
     # - MarginV=350 pushes it upward (like your example). Tweak if needed.
+    style_block= f"""[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Reel,Montserrat ExtraBold,68,&H0033C9FF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,2,5,2,38,38,345,1
+"""
+    
+    #720x1280
     style_block = f"""[V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Reel,Montserrat ExtraBold,45,&H0033C9FF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,1,0.5,2,25,25,230,1
+Style: Reel,Montserrat ExtraBold,45,&H0033C9FF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,1,3,2,25,25,230,1
 """
 
     # Replace existing style section (from [V4+ Styles] up to before [Events])

@@ -50,36 +50,10 @@ def render_video(background_video, audio, subtitles, output_file=OUTPUT_VIDEO):
         print("Warning: Background video is shorter than audio. Looping might be required (defaulting to start 0).")
         start_time = 0
 
-    # 3. Build FFmpeg Command
-    # FIX: We strictly map [0:v] into the filter, and map the filter output to the file.
-    # cmd = [
-    #     "ffmpeg",
-    #     "-y", 
-    #     "-ss", str(start_time),       # Seek start
-    #     "-i", background_video,       # Input 0
-    #     "-i", audio,                  # Input 1
-        
-    #     # FILTER EXPLANATION:
-    #     # [0:v] takes video from input 0
-    #     # ass=... adds subtitles
-    #     # crop=... crops to vertical 9:16
-    #     # [outv] names the result "outv" so we can map it later
-    #     "-filter_complex", f"[0:v]ass={subtitles},crop=ih*(9/16):ih[outv]", 
-        
-    #     "-map", "[outv]",             # Use the video WE MADE (with subs)
-    #     "-map", "1:a",                # Use the audio from input 1
-        
-    #     "-shortest",                  # Stop when audio ends
-    #     "-c:v", "libx264",            
-    #     "-preset", "fast",            
-    #     "-c:a", "aac",                
-    #     output_file
-    # ]
-
         # 3. Build FFmpeg Command
     vf = (
     f"[0:v]"
-    f"scale=468:832,"
+    f"scale=1080:1920,"
     f"ass={subtitles}"
     f"[outv]"
 )
@@ -101,7 +75,30 @@ def render_video(background_video, audio, subtitles, output_file=OUTPUT_VIDEO):
         output_file
     ]
 
+    #1280*720
+#     vf = (
+#     f"[0:v]"
+#     f"scale=720:1280,"
+#     f"ass={subtitles}"
+#     f"[outv]"
+# )
 
+#     cmd = [
+#         "ffmpeg",
+#         "-y",
+#         "-ss", str(start_time),
+#         "-i", background_video,
+#         "-i", audio,
+#         "-filter_complex", vf,
+#         "-map", "[outv]",
+#         "-map", "1:a",
+#         "-shortest",
+#         "-c:v", "libx264",
+#         "-preset", "fast",
+#         "-pix_fmt", "yuv420p",
+#         "-c:a", "aac",
+#         output_file
+#     ]
 
     print("Rendering video... (This involves video encoding and may take time)")
     try:
