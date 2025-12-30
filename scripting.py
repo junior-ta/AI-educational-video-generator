@@ -5,11 +5,11 @@ from abc import ABC, abstractmethod
 from openai import OpenAI
 
 # --- Configuration (can be adjusted) ---
-ACTIVE_PROVIDER = "ollama"  #let user decide in streamlit
+# ACTIVE_PROVIDER = "ollama"  #let user decide in streamlit
 
 OLLAMA_MODEL = "llama3.1"
 OPENAI_MODEL = "gpt-4o-mini"
-
+GROQ_MODEL = "llama3-8b-8192"
 
 # --- Creating the AI models classes and function to generate answers ---
 
@@ -48,7 +48,10 @@ class OllamaClient(ModelProvider):
 #OpenAI Implementation
 class OpenAIClient(ModelProvider):
     def __init__(self, model_name=OPENAI_MODEL, api_key=None):
-        self.client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY")) #give the user the opportunity to enter his key in streamlit
+        if not api_key:
+            raise ValueError("OpenAI API Key is required for GPT-4o-mini.")
+
+        self.client = OpenAI(api_key=api_key) #give the user the opportunity to enter his key in streamlit
         self.model_name = model_name
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
@@ -83,13 +86,28 @@ You are a scriptwriter for a tech podcast, about IBM Z mainframes and linuxONE. 
 -Use and keep question marks when needed.
 -Hard limit per sentence: max 1 comma and max 1 period
 -Before returning JSON, scan every text periods except question marks.
-""" #system prompt will never change
+"""
 
-def get_provider() -> ModelProvider: #when creating streamlit UI, remember to let the user choose the model
-    if ACTIVE_PROVIDER == "openai":
-        return OpenAIClient()
+def get_provider(provider_name, api_key=None, ollama_url=None) -> ModelProvider:
+    provider_name = provider_name.lower()
+    
+    if provider_name == "openai":
+        return OpenAIClient(api_key=api_key, model_name=OPENAI_MODEL)
+    
+    elif provider_name == "groq":
+        # Groq uses the OpenAI client but with a specific URL
+        return OpenAIClient(
+            api_key= api_key, 
+            base_url="[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)",
+            model_name=GROQ_MODEL
+        )
+        
+    elif provider_name == "ollama":
+        url = ollama_url if ollama_url else "http://localhost:11434"
+        return OllamaClient(base_url=url)
+        
     else:
-        return OllamaClient()
+        raise ValueError(f"Unknown provider: {provider_name}")
 
 def validate_json(raw_response):
     """
@@ -121,23 +139,24 @@ def validate_json(raw_response):
 
 # --- generating a script (with a retry system implimented) ---
 
-def generate_script(topic, context, max_retries=3):
-    client = get_provider()
-    
+def generate_script(topic, context, provider="openai", api_key=None, ollama_url=None, max_retries=3):
+    try:
+        client = get_provider(provider, api_key, ollama_url)
+    except Exception as e:
+        print(f"Provider Initialization Error: {e}")
+        return None
+
     # Initial Prompt
     prompt = f"Topic: {topic}\nContext Data: {context}\n\nGenerate the dialogue JSON:"
-    
     current_prompt = prompt
     
     for attempt in range(max_retries):
         print("attempting to generate script")
-        # print(f"Attempting generation ({attempt + 1}/{max_retries})...")
-        
         # Call the LLM
-        raw_response = client.generate(SYSTEM_PROMPT, current_prompt)
+
         
         try:
-            # checking if the json script is valid
+            raw_response = client.generate(SYSTEM_PROMPT, current_prompt)
             script_json = validate_json(raw_response)
             return script_json 
             
@@ -153,6 +172,9 @@ def generate_script(topic, context, max_retries=3):
             # Append the error to the prompt for the next loop (simulating conversation history)
             # In a real chat API we would append messages, but appending to prompt works for single-turn correction.
             current_prompt += error_instruction
+        except Exception as e:
+            print(f"API Error: {e}")
+            return None
 
     print("Failed to generate valid JSON after multiple attempts.")
     return None
