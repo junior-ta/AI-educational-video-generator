@@ -3,11 +3,11 @@ import pdfplumber
 import chromadb
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import os
-import glob
+import io
+from PIL import Image
+import pytesseract
 
 # Configuration
-#PDF_PATH = "example.pdf"  # Change this to your PDF to parse
-SOURCE_DIRECTORY = "./documents"  # Put all your PDFs in this folder
 CHROMA_DB_PATH = "./chroma_db"
 COLLECTION_NAME = "manual_ingest"
 
@@ -27,7 +27,43 @@ def is_inside_bbox(block_bbox, table_bboxes):
             return True
     return False
 
-def parse_pdf_dual_pass(pdf_path):
+def extract_text_from_images(fitz_page):
+    """
+    Pass 3: OCR (Optical Character Recognition)
+    Extracts images from the page, converts them to text, and returns the text.
+    """
+    image_text = ""
+    # get_images returns list of [xref, smask, width, height, bpc, colorspace, ...]
+    image_list = fitz_page.get_images(full=True)
+    
+    if not image_list:
+        return ""
+        
+    print(f"   - Found {len(image_list)} images on page. Running OCR...")
+
+    for img_index, img in enumerate(image_list):
+        xref = img[0]
+        # extract_image returns a dictionary with metadata and the raw byte stream
+        base_image = fitz_page.parent.extract_image(xref)
+        image_bytes = base_image["image"]
+        
+        # Load image into memory for analysis using Pillow
+        try:
+            image = Image.open(io.BytesIO(image_bytes))
+            
+            # Run Tesseract OCR on the PIL Image object
+            text = pytesseract.image_to_string(image)
+            
+            # Clean up: only add if we found significant text (avoids noise from icons/logos)
+            if len(text.strip()) > 5:
+                image_text += f"\n[IMAGE OCR CONTENT]:\n{text}\n"
+                
+        except Exception as e:
+            print(f"OCR Error on image {img_index}: {e}")
+            
+    return image_text
+
+def parse_pdf_dual_pass(file_bytes):
     """
     first pass: Use pdfplumber to extract tables and their coordinates. 
         Stored as a list of (y-coordinates, markdown table content) in tables_data
@@ -35,12 +71,12 @@ def parse_pdf_dual_pass(pdf_path):
         Stored as a list of (y-coordiantes, text) in text_data
     Merge: Combine text and markdown tables based on vertical position (reading order).
     """
-    print(f"Parsing: {pdf_path}...")
+    print(f"Parsing files...")
     full_text = ""
     
     # Open with both libraries
     try:
-        with pdfplumber.open(pdf_path) as plumber_pdf, fitz.open(pdf_path) as fitz_pdf:
+        with pdfplumber.open(io.BytesIO(file_bytes)) as plumber_pdf, fitz.open(stream=file_bytes, filetype="pdf") as fitz_pdf:
             
             for page_num, plumber_page in enumerate(plumber_pdf.pages): #iterating each page
                 if page_num >= len(fitz_pdf): break # Safety check
@@ -88,6 +124,9 @@ def parse_pdf_dual_pass(pdf_path):
                     if not is_inside_bbox(block_bbox, table_bboxes):
                         # Store (y-coordinate, content)
                         text_data.append((block_bbox[1], block_text))
+
+                # --- Third Pass: Images ---
+                ocr_text = extract_text_from_images(fitz_page)
 
                 # --- MERGE & SORT ---
                 # Combine tables and text
@@ -138,8 +177,6 @@ def ingest_to_chroma(chunks, filename, client):
     
     # include the filename in the Metadata
     metadatas = [{"source": filename} for _ in chunks]
-
-    #print(f"Upserting {len(chunks)} chunks from '{filename}'...")
     
     collection.add(
         documents=chunks,
@@ -147,41 +184,76 @@ def ingest_to_chroma(chunks, filename, client):
         ids=ids
     )
 
+def process_uploaded_files(uploaded_files):
+    """
+   for Streamlit function to pass a list of UploadedFile objects.
+    """
 
-def main():
-    if not os.path.exists(SOURCE_DIRECTORY):
-        os.makedirs(SOURCE_DIRECTORY)
-        print(f"Created directory {SOURCE_DIRECTORY}. Please put PDF files there and run again.")
-        return
-
-    # Initialize Client ONCE (more efficient)
     chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-
-    # 2. Find all PDFs
-    pdf_files = glob.glob(os.path.join(SOURCE_DIRECTORY, "*.pdf"))
     
-    if not pdf_files:
-        print(f"No PDFs found in {SOURCE_DIRECTORY}")
-        return
+    status_log = []
 
-    print(f"Found {len(pdf_files)} Documents.")
-
-    # 3. Process each file
-    for pdf_file in pdf_files:
-        print(f"--- Processing {os.path.basename(pdf_file)} ---")
+    for uploaded_file in uploaded_files:
+        file_name = uploaded_file.name
+        file_bytes = uploaded_file.getvalue()
         
-        # Parse
-        raw_text = parse_pdf_dual_pass(pdf_file)
+        # status_log.append(f"Processing {file_name}...")
+        
+        # Parse (using the new bytes-compatible function)
+        raw_text = parse_pdf_dual_pass(file_bytes, file_name)
         
         if raw_text:
             chunks = chunk_text(raw_text)
+            ingest_to_chroma(chunks, file_name, chroma_client)
+            status_log.append(f"Successfully ingested {file_name} ({len(chunks)} chunks).")
+        else:
+            status_log.append(f"Failed to parse {file_name}.")
             
-            # Save in database
-            ingest_to_chroma(chunks, os.path.basename(pdf_file), chroma_client)
+    return status_log
+
+
+
+
+
+
+
+
+
+
+# def main():
+#     if not os.path.exists(SOURCE_DIRECTORY):
+#         os.makedirs(SOURCE_DIRECTORY)
+#         print(f"Created directory {SOURCE_DIRECTORY}. Please put PDF files there and run again.")
+#         return
+
+#     # Initialize Client ONCE (more efficient)
+#     chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
+
+#     # 2. Find all PDFs
+#     pdf_files = glob.glob(os.path.join(SOURCE_DIRECTORY, "*.pdf"))
+    
+#     if not pdf_files:
+#         print(f"No PDFs found in {SOURCE_DIRECTORY}")
+#         return
+
+#     print(f"Found {len(pdf_files)} Documents.")
+
+#     # 3. Process each file
+#     for pdf_file in pdf_files:
+#         print(f"--- Processing {os.path.basename(pdf_file)} ---")
         
-        print(f"Finished {os.path.basename(pdf_file)}\n")
+#         # Parse
+#         raw_text = parse_pdf_dual_pass(pdf_file)
+        
+#         if raw_text:
+#             chunks = chunk_text(raw_text)
+            
+#             # Save in database
+#             ingest_to_chroma(chunks, os.path.basename(pdf_file), chroma_client)
+        
+#         print(f"Finished {os.path.basename(pdf_file)}\n")
 
-    print("All documents processed.")
+#     print("All documents processed.")
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
