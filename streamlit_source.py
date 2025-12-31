@@ -3,6 +3,8 @@ import ingest, query_context, scripting, audio, subtitles, renderer
 import os
 import json
 import shutil
+import edge_tts
+import asyncio
 
 # --- Configuration ---
 TEMP_DIR = "temp_processing"
@@ -182,6 +184,83 @@ with tab2:
 ######################################
 
 with tab3:
-    st.subheader("1. Settings 🛠️")
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        st.subheader("1. Settings 🛠️")
+        bg_video = st.file_uploader("Upload Background Video (gameplay, scenery)", type=["mp4", "mov"])
+        resolution= st.selectbox("Resolution of the Clip Uploaded", ["1920x1080", "1280x720"])
+        
+
+    with col2:
+        st.session_state.sample_audioS = None
+        st.session_state.sample_audioE = None
+        
+        actual_voiceS="en-US-GuyNeural"
+        voiceS= st.selectbox("Choose Skeptic's voice", ["en-US-GuyNeural", "en-US-AriaNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
+        if  actual_voiceS != voiceS:
+            actual_voiceS= voiceS
+            st.session_state.sample_audioS = asyncio.run(
+                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz")
+            )   
+        st.audio(st.session_state.sample_audioS, format="audio/mp3")
+
+        actual_voiceE="en-US-AriaNeural"
+        voiceE= st.selectbox("AI Expert's voice", ["en-US-AriaNeural", "en-US-GuyNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
+        if  actual_voiceE != voiceE:
+            actual_voiceE= voiceE
+            st.session_state.sample_audioE = asyncio.run(
+                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+17%", pitch="+3Hz")
+            )   
+        st.audio(st.session_state.sample_audioE, format="audio/mp3")
 
     st.subheader("2. 🎬Output")
+    if st.button("Generate Video"):
+        if not st.session_state.script_json:
+            st.error("Please generate a script in Tab 2 first.")
+        elif not bg_video:
+            st.error("Please upload a background video and choose a resoltion.")
+        else:
+            status = st.empty()
+            progress = st.progress(0)
+            
+            try:
+                # 1. Save Background Video to disk temporarily
+                bg_path = os.path.join(TEMP_DIR, "background.mp4")
+                with open(bg_path, "wb") as f:
+                    f.write(bg_video.getbuffer())
+                
+                # 2. Audio Generation
+                status.write("Generating Audio (EdgeTTS)...")
+                # We need to make create_podcast_audio synchronous or run it properly
+                # Assuming audio.py saves to 'final_audio.mp3'
+                audio.create_podcast_audio(st.session_state.script_json, voiceS, voiceE)
+                progress.progress(30)
+                
+                # 3. Subtitles
+                status.write("Generating Subtitles (Whisper)...")
+                generate_subtitles("final_audio.mp3")
+                progress.progress(60)
+                
+                # 4. Rendering
+                status.write("Rendering Video (FFmpeg)... this takes time!")
+                output_video = "final_output.mp4"
+                render_video(bg_path, "final_audio.mp3", "captions.ass", output_file=output_video)
+                progress.progress(100)
+                
+                status.success("Rendering Complete!")
+                
+                # 5. Display
+                st.video(output_video)
+                
+                # 6. Download Button
+                with open(output_video, "rb") as file:
+                    st.download_button(
+                        label="Download Video",
+                        data=file,
+                        file_name="linuxone_generated.mp4",
+                        mime="video/mp4"
+                    )
+                    
+            except Exception as e:
+                st.error(f"Processing Error: {e}")

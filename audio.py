@@ -4,21 +4,39 @@ import json
 import edge_tts
 from pydub import AudioSegment
 from pydub.silence import detect_nonsilent
+from io import BytesIO
 
 # --- Configuration ---
 OUTPUT_FILE = "Script_audio.mp3"
 TEMP_DIR = "temp_audio_segments"
 
 # Voice Choices
-VOICE_SKEPTIC = "en-US-GuyNeural" 
-VOICE_EXPERT = "en-US-AriaNeural" 
-#VOICE_EXPERT = "en-US-ChristopherNeural" 
-#VOICE_EXPERT = "en-US-EricNeural" 
+# VOICE_SKEPTIC = "en-US-GuyNeural" 
+# VOICE_EXPERT = "en-US-AriaNeural" 
+# #VOICE_EXPERT = "en-US-ChristopherNeural" 
+# #VOICE_EXPERT = "en-US-EricNeural" 
 
 # Voices Adjustments
 RATE_SKEPTIC = "+17%"   # Speed up for energy
+PITCH_SKEPTIC= "+3Hz"
+RATE_EXPERT = "+10%"
 PITCH_EXPERT = "+0Hz"   # Lower slightly for authority
+
 TURN_GAP_MS = 500  
+
+async def tts_to_bytes(text, voice, rate, pitch):
+    buf = BytesIO()
+    communicate = edge_tts.Communicate(
+        text,
+        voice,
+        rate=rate,
+        pitch=pitch,
+        volume="+0%"
+    )
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            buf.write(chunk["data"])
+    return buf.getvalue()
 
 def trim_silence(audio, silence_thresh=-38, chunk_size=10):
     ns = detect_nonsilent(audio, min_silence_len=chunk_size, silence_thresh=silence_thresh)
@@ -26,7 +44,7 @@ def trim_silence(audio, silence_thresh=-38, chunk_size=10):
         return audio
     return audio[ns[0][0]:ns[-1][1]]
 
-async def generate_segment(text, speaker, index):
+async def generate_segment(text, speaker, index, voice):
     """
     Generates a single audio clip for a line of dialogue.
     Returns the filename of the generated clip.
@@ -39,12 +57,10 @@ async def generate_segment(text, speaker, index):
     # Determine Voice & Settings based on Speaker
     volume="+0%"
     if speaker == "Skeptic":
-        voice = VOICE_SKEPTIC
         rate = RATE_SKEPTIC
-        pitch = "+3Hz" 
+        pitch = PITCH_SKEPTIC 
     else:
-        voice = VOICE_EXPERT
-        rate = "+10%"   
+        rate = RATE_EXPERT   
         pitch = PITCH_EXPERT
 
     # Generate Audio using 'communicate' to hit the Edge TTS API
@@ -53,7 +69,7 @@ async def generate_segment(text, speaker, index):
     
     return filename
 
-async def generate_audio(script_json):
+async def generate_audio(script_json, skeptic, expert):
     """
     Main function to process the entire script JSON and produce a final MP3.
     """
@@ -66,6 +82,12 @@ async def generate_audio(script_json):
     l=0
     for i, line in enumerate(script_json):
         speaker = line.get("speaker")
+        
+        if speaker== "Expert":
+            voice=expert
+        else:
+            voice=skeptic
+
         text = line.get("text")
         
         if l==0 or l%5==0:
@@ -73,7 +95,7 @@ async def generate_audio(script_json):
         
         try:
             # Await for generation
-            filename = await generate_segment(text, speaker, i)
+            filename = await generate_segment(text, speaker, i, voice)
             temp_files.append(filename)
             
             # Load the clip into pydub
@@ -103,20 +125,20 @@ async def generate_audio(script_json):
 
 # --- Wrapper for Synchronous Execution ---
 # Since edge-tts is async, we need this wrapper to call it from other scripts nicely.
-def create_podcast_audio(script_json):
-    asyncio.run(generate_audio(script_json))
+def create_podcast_audio(script_json, skeptic, expert):
+    asyncio.run(generate_audio(script_json, skeptic, expert))
 
-# --- Testing---
-if __name__ == "__main__":
-    with open("text.json", "r", encoding="utf-8") as f:
-        data = json.load(f)
+# # --- Testing---
+# if __name__ == "__main__":
+#     with open("text.json", "r", encoding="utf-8") as f:
+#         data = json.load(f)
 
-    test_script = data
-    # [
-    #     {"speaker": "Skeptic", "text": "Wait, so you're telling me this AI actually understands what I'm saying?"},
-    #     {"speaker": "Expert", "text": "Not exactly 'understands' in the human sense. It predicts the next most likely word based on patterns."},
-    #     {"speaker": "Skeptic", "text": "That sounds like a fancy autocomplete."},
-    #     {"speaker": "Expert", "text": "It is! But imagine an autocomplete that has read every book in the library."}
-    # ]
+#     test_script = data
+#     # [
+#     #     {"speaker": "Skeptic", "text": "Wait, so you're telling me this AI actually understands what I'm saying?"},
+#     #     {"speaker": "Expert", "text": "Not exactly 'understands' in the human sense. It predicts the next most likely word based on patterns."},
+#     #     {"speaker": "Skeptic", "text": "That sounds like a fancy autocomplete."},
+#     #     {"speaker": "Expert", "text": "It is! But imagine an autocomplete that has read every book in the library."}
+#     # ]
     
-    create_podcast_audio(test_script)
+#     create_podcast_audio(test_script)
