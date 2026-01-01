@@ -193,26 +193,56 @@ with tab3:
         
 
     with col2:
-        st.session_state.sample_audioS = None
-        st.session_state.sample_audioE = None
+        actual_voiceS="en-US-GuyNeural" 
+        actual_voiceE="en-US-AriaNeural"       
         
-        actual_voiceS="en-US-GuyNeural"
+        if 'sample_audioS' not in st.session_state:
+            st.session_state.sample_audioS = asyncio.run(
+                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz"))
+        
+        if 'sample_audioE' not in st.session_state:
+            st.session_state.sample_audioE = asyncio.run(
+                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz"))
+        
+
         voiceS= st.selectbox("Choose Skeptic's voice", ["en-US-GuyNeural", "en-US-AriaNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
         if  actual_voiceS != voiceS:
             actual_voiceS= voiceS
             st.session_state.sample_audioS = asyncio.run(
                 audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz")
-            )   
+            )
+        else:
+            st.session_state.sample_audioS = asyncio.run(
+                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz"))            
         st.audio(st.session_state.sample_audioS, format="audio/mp3")
 
-        actual_voiceE="en-US-AriaNeural"
         voiceE= st.selectbox("AI Expert's voice", ["en-US-AriaNeural", "en-US-GuyNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
         if  actual_voiceE != voiceE:
             actual_voiceE= voiceE
             st.session_state.sample_audioE = asyncio.run(
                 audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz")
-            )   
+            )
+        else:
+            st.session_state.sample_audioE = asyncio.run(
+                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz"))            
         st.audio(st.session_state.sample_audioE, format="audio/mp3")
+
+    ##.......parameters state backing....
+    if "last_generation_params" not in st.session_state:
+        st.session_state.last_generation_params = {}
+
+    if "final_video_path" not in st.session_state:
+        st.session_state.final_video_path = None
+
+    # To check against history
+    current_params = {
+        "bg_name": bg_video.name if bg_video else None,
+        "script_content": str(st.session_state.script_json) if st.session_state.script_json else None,
+        "voiceS": voiceS,
+        "voiceE": voiceE,
+        "resolution": resolution
+    }
+
 
     st.subheader("2. 🎬Output")
     if st.button("Generate Video"):
@@ -221,46 +251,56 @@ with tab3:
         elif not bg_video:
             st.error("Please upload a background video and choose a resoltion.")
         else:
-            status = st.empty()
-            progress = st.progress(0)
-            
-            try:
-                # 1. Save Background Video to disk temporarily
-                bg_path = os.path.join(TEMP_DIR, "background.mp4")
-                with open(bg_path, "wb") as f:
-                    f.write(bg_video.getbuffer())
+            if st.session_state.final_video_path and st.session_state.last_generation_params == current_params:
+                st.info("no change made!")
+            else:
+                status = st.empty()
+                progress = st.progress(0)
                 
-                # 2. Audio Generation
-                status.write("Generating Audio ...")
-                # We need to make create_podcast_audio synchronous or run it properly
-                # Assuming audio.py saves to 'final_audio.mp3'
-                audio.create_podcast_audio(st.session_state.script_json, voiceS, voiceE)
-                progress.progress(30)
-                
-                # 3. Subtitles
-                status.write("Generating Subtitles ...")
-                audio.generate_subtitles(resolution, "Script_audio.mp3")
-                progress.progress(60)
-                
-                # 4. Rendering
-                status.write("Rendering Video ...")
-                output_video = "final_output.mp4"
-                renderer.render_video(resolution, bg_path, "Script_audio.mp3", "Script_captions.ass", output_file=output_video)
-                progress.progress(100)
-                
-                status.success("Rendering Complete!")
-                
-                # 5. Display
-                st.video(output_video)
-                
-                # 6. Download Button
-                with open(output_video, "rb") as file:
-                    st.download_button(
-                        label="Download Video",
-                        data=file,
-                        file_name="linuxone_generated.mp4",
-                        mime="video/mp4"
-                    )
+                try:
+                    # 1. Save Background Video to disk temporarily
+                    bg_path = os.path.join(TEMP_DIR, "background.mp4")
+                    with open(bg_path, "wb") as f:
+                        f.write(bg_video.getbuffer())
                     
-            except Exception as e:
-                st.error(f"Processing Error: {e}")
+                    # 2. Audio Generation
+                    status.write("Generating Audio ...")
+                    # We need to make create_podcast_audio synchronous or run it properly
+                    # Assuming audio.py saves to 'final_audio.mp3'
+                    audio.create_podcast_audio(st.session_state.script_json, voiceS, voiceE)
+                    progress.progress(30)
+                    
+                    # 3. Subtitles
+                    status.write("Generating Subtitles ...")
+                    subtitles.generate_subtitles(resolution, "Script_audio.mp3")
+                    progress.progress(60)
+                    
+                    # 4. Rendering
+                    status.write("Rendering Video ...")
+                    output_video = "final_output.mp4"
+                    renderer.render_video(resolution, bg_path, "Script_audio.mp3", "Script_captions.ass", output_file=output_video)
+                    progress.progress(100)
+                    
+                    status.success("Rendering Complete!")
+
+                    # 4.2 Save parameters
+                    st.session_state.last_generation_params= current_params
+                    st.session_state.final_video_path= output_video
+                
+                except Exception as e:
+                    st.error(f"Processing Error: {e}")
+
+    # 5. Display
+    if st.session_state.final_video_path and os.path.exists(st.session_state.final_video_path):
+            st.divider()
+            st.subheader("Final Video Preview")
+            st.video(st.session_state.final_video_path)
+            
+            # 6. Download Button
+            with open(st.session_state.final_video_path, "rb") as file:
+                st.download_button(
+                    label="Download Video",
+                    data=file,
+                    file_name="video_generated.mp4",
+                    mime="video/mp4"
+                )  
