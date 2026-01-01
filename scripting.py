@@ -9,7 +9,7 @@ from openai import OpenAI
 
 OLLAMA_MODEL = "llama3.1"
 OPENAI_MODEL = "gpt-4o-mini"
-GROQ_MODEL = "llama3-8b-8192"
+GROQ_MODEL = "llama-3.1-8b-instant"
 
 # --- Creating the AI models classes and function to generate answers ---
 
@@ -101,7 +101,7 @@ def get_provider(provider_name, api_key=None, ollama_url=None) -> ModelProvider:
         # Groq uses the OpenAI client but with a specific URL
         return OpenAIClient(
             api_key= api_key, 
-            base_url="[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)",
+            base_url="https://api.groq.com/openai/v1",
             model_name=GROQ_MODEL
         )
         
@@ -183,15 +183,15 @@ def generate_script(topic, context, provider="openai", api_key=None, ollama_url=
     return None
 
 
-if __name__ == "__main__":
-    # Example Usage
-    sample_topic = "IBM Z mainframes and LinuxOne"
-    sample_context = "IBM Z mainframes have 0 down time"
+# if __name__ == "__main__":
+#     # Example Usage
+#     sample_topic = "IBM Z mainframes and LinuxOne"
+#     sample_context = "IBM Z mainframes have 0 down time"
     
-    script = generate_script(sample_topic, sample_context)
+#     script = generate_script(sample_topic, sample_context)
     
-    if script:
-        print("\n--- Generated Script ---")
-        print(json.dumps(script, indent=2))
-    else:
-        print("failed")
+#     if script:
+#         print("\n--- Generated Script ---")
+#         print(json.dumps(script, indent=2))
+#     else:
+#         print("failed")

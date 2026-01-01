@@ -93,9 +93,15 @@ with tab1:
                         ollama_url=ollama_url
                     )
                     st.session_state.script_json = script
-                    st.success("✅ Script Generated! Please click on the 'Scripting' tab above to continue.")
+                    if st.session_state.script_json==None:
+                        st.write("No script was generated (check the console...)")
+                    else:                    
+                        st.success("✅ Script Generated! Please click on the 'Scripting' tab above to continue.")
+                        
                 except Exception as e:
                     st.error(f"Error: {e}")
+                    
+                    
 
 
 #######################################
@@ -104,7 +110,10 @@ with tab1:
 
 with tab2:
     st.subheader("Preview Script")
-    st.write("When you are satisfied with the script, proceed to the Rendering tab by clicking on 'Rendering' above")
+    if st.session_state.script_json==None:
+        st.write("No script was generated")
+    else:
+        st.write("When you are satisfied with the script, proceed to the Rendering tab by clicking on 'Rendering' above")        
 
     #state is preview or edit
     if "mode" not in st.session_state:
@@ -246,8 +255,8 @@ with tab3:
 
     st.subheader("2. 🎬Output")
     if st.button("Generate Video"):
-        if not st.session_state.script_json:
-            st.error("Please generate a script in Tab 2 first.")
+        if not st.session_state.script_json or st.session_state.script_json==None:
+            st.error("Please generate a script in Tab 1 first.")
         elif not bg_video:
             st.error("Please upload a background video and choose a resoltion.")
         else:
