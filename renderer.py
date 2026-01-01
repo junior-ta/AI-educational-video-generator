@@ -25,7 +25,7 @@ def get_duration(file_path):
         print(f"Error probing {file_path}: {e}")
         return 0.0
 
-def render_video(background_video, audio, subtitles, output_file=OUTPUT_VIDEO):
+def render_video(resolution, background_video, audio, subtitles, output_file=OUTPUT_VIDEO):
     """
     Combines background video, audio, and subtitles into a Reel/TikTok ready file.
     """
@@ -51,54 +51,57 @@ def render_video(background_video, audio, subtitles, output_file=OUTPUT_VIDEO):
         start_time = 0
 
         # 3. Build FFmpeg Command
-    vf = (
-    f"[0:v]"
-    f"scale=1080:1920,"
-    f"ass={subtitles}"
-    f"[outv]"
-)
+    if resolution=="1280x720":
+        #1280*720
+        vf = (
+        f"[0:v]"
+        f"scale=720:1280,"
+        f"ass={subtitles}"
+        f"[outv]"
+    )
 
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-ss", str(start_time),
-        "-i", background_video,
-        "-i", audio,
-        "-filter_complex", vf,
-        "-map", "[outv]",
-        "-map", "1:a",
-        "-shortest",
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        output_file
-    ]
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss", str(start_time),
+            "-i", background_video,
+            "-i", audio,
+            "-filter_complex", vf,
+            "-map", "[outv]",
+            "-map", "1:a",
+            "-shortest",
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            output_file
+        ]
+    else: #1080p
+        vf = (
+        f"[0:v]"
+        f"scale=1080:1920,"
+        f"ass={subtitles}"
+        f"[outv]"
+    )
 
-    #1280*720
-#     vf = (
-#     f"[0:v]"
-#     f"scale=720:1280,"
-#     f"ass={subtitles}"
-#     f"[outv]"
-# )
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss", str(start_time),
+            "-i", background_video,
+            "-i", audio,
+            "-filter_complex", vf,
+            "-map", "[outv]",
+            "-map", "1:a",
+            "-shortest",
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            output_file
+        ]
 
-#     cmd = [
-#         "ffmpeg",
-#         "-y",
-#         "-ss", str(start_time),
-#         "-i", background_video,
-#         "-i", audio,
-#         "-filter_complex", vf,
-#         "-map", "[outv]",
-#         "-map", "1:a",
-#         "-shortest",
-#         "-c:v", "libx264",
-#         "-preset", "fast",
-#         "-pix_fmt", "yuv420p",
-#         "-c:a", "aac",
-#         output_file
-#     ]
+
 
     print("Rendering video... (This involves video encoding and may take time)")
     try:
@@ -109,13 +112,13 @@ def render_video(background_video, audio, subtitles, output_file=OUTPUT_VIDEO):
     except subprocess.CalledProcessError as e:
         print(f"FFmpeg Error: {e}")
 
-if __name__ == "__main__":
-    # Test Run
-    bg = "background.mp4" 
-    aud = "Script_audio.mp3"
-    subs = "Script_captions.ass"
+# if __name__ == "__main__":
+#     # Test Run
+#     bg = "background.mp4" 
+#     aud = "Script_audio.mp3"
+#     subs = "Script_captions.ass"
     
-    if os.path.exists(bg) and os.path.exists(aud) and os.path.exists(subs):
-        render_video(bg, aud, subs)
-    else:
-        print(f"Test skipped. Please ensure {bg}, {aud}, and {subs} exist.")
+#     if os.path.exists(bg) and os.path.exists(aud) and os.path.exists(subs):
+#         render_video(bg, aud, subs)
+#     else:
+#         print(f"Test skipped. Please ensure {bg}, {aud}, and {subs} exist.")

@@ -210,7 +210,7 @@ with tab3:
         if  actual_voiceE != voiceE:
             actual_voiceE= voiceE
             st.session_state.sample_audioE = asyncio.run(
-                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+17%", pitch="+3Hz")
+                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz")
             )   
         st.audio(st.session_state.sample_audioE, format="audio/mp3")
 
@@ -231,21 +231,21 @@ with tab3:
                     f.write(bg_video.getbuffer())
                 
                 # 2. Audio Generation
-                status.write("Generating Audio (EdgeTTS)...")
+                status.write("Generating Audio ...")
                 # We need to make create_podcast_audio synchronous or run it properly
                 # Assuming audio.py saves to 'final_audio.mp3'
                 audio.create_podcast_audio(st.session_state.script_json, voiceS, voiceE)
                 progress.progress(30)
                 
                 # 3. Subtitles
-                status.write("Generating Subtitles (Whisper)...")
-                generate_subtitles("final_audio.mp3")
+                status.write("Generating Subtitles ...")
+                audio.generate_subtitles(resolution, "Script_audio.mp3")
                 progress.progress(60)
                 
                 # 4. Rendering
-                status.write("Rendering Video (FFmpeg)... this takes time!")
+                status.write("Rendering Video ...")
                 output_video = "final_output.mp4"
-                render_video(bg_path, "final_audio.mp3", "captions.ass", output_file=output_video)
+                renderer.render_video(resolution, bg_path, "Script_audio.mp3", "Script_captions.ass", output_file=output_video)
                 progress.progress(100)
                 
                 status.success("Rendering Complete!")
