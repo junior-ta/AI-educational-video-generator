@@ -6,6 +6,12 @@ import os
 import io
 from PIL import Image
 import pytesseract
+import platform
+
+# Only set the path if running on Windows (Local)
+if platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# On Linux, The system finds tesseract automatically because we added it to packages.txt.
 
 # Configuration
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
