@@ -39,8 +39,9 @@ def patch_ass_style720(ass_path: str):
     # - MarginV=350 pushes it upward (like your example). Tweak if needed.
     style_block = f"""[V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Reel,Montserrat ExtraBold,45,&H0033C9FF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,1,3,2,25,25,230,1
+Style: Reel,Montserrat ExtraBold,45,&H0033C9FF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,1,3,5,25,25,0,1
 """
+
 
     # Replace existing style section (from [V4+ Styles] up to before [Events])
     if "[V4+ Styles]" in ass:
@@ -66,10 +67,11 @@ def patch_ass_style1080(ass_path: str):
         ass = re.sub(r"PlayResY:\s*\d+", f"PlayResY: {PLAY_RES_Y}", ass)
 
 
-    style_block= f"""[V4+ Styles]
+    style_block = f"""[V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Reel,Montserrat ExtraBold,68,&H0033C9FF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,2,5,2,38,38,345,1
+Style: Reel,Montserrat ExtraBold,68,&H0033C9FF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,2,5,5,38,38,0,1
 """
+
 
     # Replace existing style section (from [V4+ Styles] up to before [Events])
     if "[V4+ Styles]" in ass:
