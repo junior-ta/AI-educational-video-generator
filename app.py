@@ -240,13 +240,25 @@ with tab3:
     if "final_video_path" not in st.session_state:
         st.session_state.final_video_path = None
 
+    if "subtitle_lines" not in st.session_state:
+        st.session_state.subtitle_lines = None
+
+    if "subtitles_edited" not in st.session_state:
+        st.session_state.subtitles_edited = False
+
+    if "show_subtitle_editor" not in st.session_state:
+        st.session_state.show_subtitle_editor = False
+
+
+
     # To check against history
     current_params = {
         "bg_name": bg_video.name if bg_video else None,
         "script_content": str(st.session_state.script_json) if st.session_state.script_json else None,
         "voiceS": voiceS,
         "voiceE": voiceE,
-        "resolution": resolution
+        "resolution": resolution,
+        "subtitles": st.session_state.subtitles_edited
     }
 
 
@@ -255,7 +267,7 @@ with tab3:
         if not st.session_state.script_json or st.session_state.script_json==None:
             st.error("Please generate a script in Tab 1 first.")
         elif not bg_video:
-            st.error("Please upload a background video and choose a resoltion.")
+            st.error("Please upload a background video and choose a resolution.")
         else:
             if st.session_state.final_video_path and st.session_state.last_generation_params == current_params:
                 st.info("no change made!")
@@ -277,8 +289,14 @@ with tab3:
                     progress.progress(30)
                     
                     # 3. Subtitles
-                    status.write("Generating Subtitles ...")
-                    subtitles.generate_subtitles(resolution, "Script_audio.mp3")
+                    if not st.session_state.subtitles_edited:
+                        status.write("Generating Subtitles ...")
+                        subtitles.generate_subtitles(resolution, "Script_audio.mp3")
+                        st.session_state.subtitle_lines=subtitles.extract_dialogue_text("Script_captions.ass")
+                    else:
+                        status.write("Using edited subtitles ...")
+                        st.session_state.subtitle_lines=subtitles.extract_dialogue_text("Script_captions.ass")
+
                     progress.progress(60)
                     
                     # 4. Rendering
@@ -298,15 +316,48 @@ with tab3:
 
     # 5. Display
     if st.session_state.final_video_path and os.path.exists(st.session_state.final_video_path):
-            st.divider()
-            st.subheader("Final Video Preview")
-            st.video(st.session_state.final_video_path)
-            
-            # 6. Download Button
-            with open(st.session_state.final_video_path, "rb") as file:
-                st.download_button(
-                    label="Download Video",
-                    data=file,
-                    file_name="video_generated.mp4",
-                    mime="video/mp4"
-                )  
+        st.divider()
+        st.subheader("Final Video Preview")
+        st.video(st.session_state.final_video_path)
+        
+        # 6. Download Button
+        with open(st.session_state.final_video_path, "rb") as file:
+            st.download_button(
+                label="Download Video",
+                data=file,
+                file_name="video_generated.mp4",
+                mime="video/mp4"
+            )  
+
+    # 7. Subtitles modification         
+    st.divider()
+
+    if st.session_state.subtitle_lines:
+        if st.button("✏️ Edit Subtitles"):
+            st.session_state.show_subtitle_editor = True
+    else:
+        st.info("Generate a video first to enable subtitle editing.")
+
+    if st.session_state.show_subtitle_editor:
+
+        edited_text = st.text_area(
+            "Edit subtitles (one line per caption)",
+            value="\n".join(st.session_state.subtitle_lines),
+            height=300
+        )
+
+        if st.button("💾 Save Subtitle Changes"):
+            updated_lines = edited_text.split("\n")
+
+            subtitles.rewrite_ass_text(
+                "Script_captions.ass",
+                updated_lines
+            )
+
+            st.session_state.subtitle_lines = updated_lines
+            st.session_state.subtitles_edited = True
+            st.session_state.show_subtitle_editor = False
+
+            st.success(
+                "Subtitles saved! Changes will be applied next time you click Generate Video."
+            )

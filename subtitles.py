@@ -120,5 +120,37 @@ def generate_subtitles(resolution, audio_path=INPUT_AUDIO):
 
     print(f"Success! Subtitles saved to {OUTPUT_FILENAME}")
 
+
+def extract_dialogue_text(ass_path: str):
+    """
+    Extracts only the spoken text from Dialogue lines.
+    Returns a list of strings (one per subtitle line).
+    """
+    lines = []
+    with open(ass_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("Dialogue:"):
+                text = line.split(",", 9)[-1].strip()
+                lines.append(text)
+    return lines
+
+
+def rewrite_ass_text(ass_path: str, new_lines: list[str]):
+    """
+    Replaces subtitle text while keeping timing/style unchanged.
+    """
+    out = []
+    i = 0
+    with open(ass_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("Dialogue:") and i < len(new_lines):
+                prefix = line.split(",", 9)[:9]
+                line = ",".join(prefix) + "," + new_lines[i] + "\n"
+                i += 1
+            out.append(line)
+
+    with open(ass_path, "w", encoding="utf-8") as f:
+        f.writelines(out)
+        
 # if __name__ == "__main__":
 #     generate_subtitles()
