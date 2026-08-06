@@ -48,3 +48,8 @@ chromadb/
 
 # Node (if any)
 node_modules/
+
+#Others
+*.mp4
+documents
+*.ass

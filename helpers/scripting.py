@@ -156,8 +156,6 @@ def generate_script(topic, context, provider="openai", api_key=None, ollama_url=
     for attempt in range(max_retries):
         print("attempting to generate script")
         # Call the LLM
-
-        
         try:
             raw_response = client.generate(SYSTEM_PROMPT, current_prompt)
             script_json = validate_json(raw_response)
@@ -181,17 +179,3 @@ def generate_script(topic, context, provider="openai", api_key=None, ollama_url=
 
     print("Failed to generate valid JSON after multiple attempts.")
     return None
-
-
-# if __name__ == "__main__":
-#     # Example Usage
-#     sample_topic = "IBM Z mainframes and LinuxOne"
-#     sample_context = "IBM Z mainframes have 0 down time"
-    
-#     script = generate_script(sample_topic, sample_context)
-    
-#     if script:
-#         print("\n--- Generated Script ---")
-#         print(json.dumps(script, indent=2))
-#     else:
-#         print("failed")

@@ -1,4 +1,4 @@
-import fitz  #This is PyMuPDF
+import fitz  
 import pdfplumber
 import chromadb
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -76,17 +76,18 @@ def parse_pdf_dual_pass(file_bytes):
         Stored as a list of (y-coordinates, markdown table content) in tables_data
     second pass: Use PyMuPDF to extract text blocks, and use is_inside_bbox to filter out those inside tables.
         Stored as a list of (y-coordiantes, text) in text_data
+    third pass; image text extraction with tesseract
     Merge: Combine text and markdown tables based on vertical position (reading order).
     """
     print(f"Parsing files...")
     full_text = ""
     
-    # Open with both libraries
+
     try:
         with pdfplumber.open(io.BytesIO(file_bytes)) as plumber_pdf, fitz.open(stream=file_bytes, filetype="pdf") as fitz_pdf:
             
             for page_num, plumber_page in enumerate(plumber_pdf.pages): #iterating each page
-                if page_num >= len(fitz_pdf): break # Safety check
+                if page_num >= len(fitz_pdf): break 
 
                 fitz_page = fitz_pdf[page_num]
                 
