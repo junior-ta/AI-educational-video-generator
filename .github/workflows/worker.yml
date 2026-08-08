@@ -23,8 +23,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-        pip install --extra-index-url https://download.pytorch.org/whl/cpu torch
-        pip install -r requirements-worker.txt
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu torch
+          pip install -r requirements-worker.txt
 
       - name: Process pending jobs
         env:
