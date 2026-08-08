@@ -4,7 +4,7 @@ import requests
 from abc import ABC, abstractmethod
 from openai import OpenAI
 
-# --- Configuration (can be adjusted) ---
+# --- Configuration ---
 # ACTIVE_PROVIDER = "ollama"  #let user decide in streamlit
 
 OLLAMA_MODEL = "llama3.1"
@@ -75,7 +75,7 @@ class OpenAIClient(ModelProvider):
 #_____________________________________________________________________________________________________________________________________#
 
 SYSTEM_PROMPT = """
-You are a scriptwriter for a tech podcast, about IBM Z mainframes and linuxONE. You must generate an informal conversation dialogue between two personas based on the provided Topic and Context.
+You are a scriptwriter for a educational podcast. You must generate an informal conversation dialogue between two personas based on the provided Topic and Context.
 
 **The Personas:**
 1. **The Skeptic:** Casual, questioning, slightly cynical. Doesn't buy into hype. Uses simple and gen z language.

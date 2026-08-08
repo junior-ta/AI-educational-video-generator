@@ -14,7 +14,8 @@ TEMP_DIR = "temp_processing"
 if not os.path.exists(TEMP_DIR):
     os.makedirs(TEMP_DIR)
 
-st.title("🎥 AI Instagram reel/tiktok generator")
+st.title("PodTok")
+st.title("🎥 AI Educational Video Maker")
 
 tab1, tab2, tab3= st.tabs(["Input & Configuration", "Scripting", "Rendering"])
 
@@ -49,7 +50,7 @@ with tab1:
     #Spacing
     st.markdown("")
     #ingesting the files
-    uploaded_files= st.file_uploader("Attach supporting pdf files🔽", type="pdf", accept_multiple_files=True)
+    uploaded_files= st.file_uploader("Upload your lesson PDF (Otherwise the content will be generated completely by the LLM)🔽", type="pdf", accept_multiple_files=True)
     upload_process=0
 
     if st.button("Process Documents"):
@@ -334,7 +335,7 @@ with tab3:
                     st.session_state.job_still_running = True  # (re)start the auto-poll fragment
 
                     if trigger_worker_run():
-                        st.info(f"Background video is {size_mb:.0f}MB — rendering remotely. Status updates automatically below.")
+                        st.info(f"Background video is {size_mb:.0f}MB — rendering remotely. Follow Status updates [estimated processing time: 3 mins].")
                     else:
                         st.warning("Job queued, but the instant trigger failed — it'll run within 30 min via the fallback schedule.")
                 except Exception as e:

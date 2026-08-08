@@ -14,7 +14,6 @@ if platform.system() == "Windows":
 # On Linux, The system finds tesseract automatically because we added it to packages.txt.
 
 # Configuration
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 CHROMA_DB_PATH = "./chroma_db"
 COLLECTION_NAME = "manual_ingest"
 
