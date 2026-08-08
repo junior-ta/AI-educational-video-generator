@@ -335,14 +335,14 @@ with tab3:
                     st.session_state.job_still_running = True  # (re)start the auto-poll fragment
 
                     if trigger_worker_run():
-                        st.info(f"Background video is {size_mb:.0f}MB — rendering remotely. Follow Status updates [estimated processing time: 3 mins].")
+                        st.info(f"Rendering remotely. Follow Status updates [estimated processing time: 2 mins].")
                     else:
                         st.warning("Job queued, but the instant trigger failed — it'll run within 30 min via the fallback schedule.")
                 except Exception as e:
                     st.error(f"Upload/Submit Error: {e}")
 
-    # --- Remote polling: auto-refreshes every 30s while a job is running, no button needed ---
-    @st.fragment(run_every=30 if st.session_state.job_still_running else None)
+    # --- Remote polling: auto-refreshes every 20s while a job is running, no button needed ---
+    @st.fragment(run_every=20 if st.session_state.job_still_running else None)
     def poll_job_status():
         if st.session_state.processing_mode != "remote" or not st.session_state.job_id:
             return
@@ -353,9 +353,14 @@ with tab3:
             return
 
         if job["status"] in ("pending", "processing"):
-            st.info("Still working on it... (checking every 30s)")
+            st.info("Still working on it...")
 
-        elif job["status"] == "error":
+        #Job terminated here
+
+        was_running = st.session_state.job_still_running
+        st.session_state.job_still_running = False
+
+        if job["status"] == "error":
             st.session_state.job_still_running = False
             st.error(f"Failed: {job['error_message']}")
 
@@ -372,6 +377,9 @@ with tab3:
                 download_to_file("assets", job["captions_key"], captions_local)
                 st.session_state.subtitle_lines = subtitles.extract_dialogue_text(captions_local)
                 st.session_state.captions_local_path = captions_local
+
+        if was_running:
+            st.rerun(scope="app")
 
     poll_job_status()
 

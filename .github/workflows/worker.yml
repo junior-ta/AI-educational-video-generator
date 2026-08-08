@@ -15,12 +15,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements-worker.txt
 
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Install dependencies
-        run: pip install -r requirements-worker.txt
+        run: |
+        pip install --extra-index-url https://download.pytorch.org/whl/cpu torch
+        pip install -r requirements-worker.txt
 
       - name: Process pending jobs
         env:
