@@ -1,9 +1,8 @@
 import os
 import traceback
 
-import audio
-import subtitles
-import renderer
+# Only lightweight, low-risk imports at module level. if a heavy dependency fails to import,
+# we still need to be able to talk to Supabase to mark the job as errored
 from supabase_jobs import get_client, update_job, claim_next_pending_job
 from r2_helper import upload_file, download_to_file, new_object_key
 
@@ -21,6 +20,10 @@ def cleanup(*paths):
 
 
 def process_full_job(client, job):
+    import audio
+    import subtitles
+    import renderer
+
     job_id = job["id"]
     bg_local = os.path.join(TEMP_DIR, "background.mp4")
     output_local = os.path.join(TEMP_DIR, "final_output.mp4")
@@ -43,6 +46,8 @@ def process_full_job(client, job):
 
 
 def process_rerender_job(client, job):
+    import renderer
+
     job_id = job["id"]
     bg_local = os.path.join(TEMP_DIR, "background.mp4")
     audio_local = os.path.join(TEMP_DIR, "Script_audio.mp3")
@@ -62,16 +67,29 @@ def process_rerender_job(client, job):
 
 
 def process_job(client, job):
+    """
+    Every path out of this function must leave the job in a terminal
+    state (done/error) in Supabase. This includes import-time failures
+    inside process_full_job/process_rerender_job (e.g. a broken torch/
+    torchaudio pairing) — previously those crashed the whole script
+    before the job was ever touched, leaving it stuck on 'pending'
+    forever with no error message anywhere.
+    """
     try:
         if job.get("job_type") == "rerender":
             process_rerender_job(client, job)
         else:
             process_full_job(client, job)
         print(f"[{job['id']}] Done.")
-    except Exception as e:
+
+    except BaseException as e:
+        #so nothing can escape without updating the job status.
         print(f"[{job['id']}] FAILED: {e}")
-        update_job(client, job["id"], status="error", error_message=str(e))
         traceback.print_exc()
+        try:
+            update_job(client, job["id"], status="error", error_message=str(e)[:1000])
+        except Exception as update_err:
+            print(f"[{job['id']}] ALSO FAILED TO UPDATE SUPABASE: {update_err}")
 
 
 def main():
