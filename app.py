@@ -248,6 +248,7 @@ with tab3:
         ("job_id", None),
         ("current_job", None),
         ("captions_local_path", None),
+        ("job_still_running", False),   # controls whether the auto-poll fragment keeps refreshing
     ]:
         if key not in st.session_state:
             st.session_state[key] = default
@@ -330,37 +331,48 @@ with tab3:
                     st.session_state.job_id = job_id
                     st.session_state.current_job = None
                     st.session_state.last_generation_params = current_params
+                    st.session_state.job_still_running = True  # (re)start the auto-poll fragment
 
                     if trigger_worker_run():
-                        st.info(f"Background video is {size_mb:.0f}MB — rendering remotely. Click 'Check Status' below shortly.")
+                        st.info(f"Background video is {size_mb:.0f}MB — rendering remotely. Status updates automatically below.")
                     else:
                         st.warning("Job queued, but the instant trigger failed — it'll run within 30 min via the fallback schedule.")
                 except Exception as e:
                     st.error(f"Upload/Submit Error: {e}")
 
-    # --- Remote polling ---
-    if st.session_state.processing_mode == "remote" and st.session_state.job_id:
-        if st.button("Check Status"):
-            st.session_state.current_job = get_job(supabase_client, st.session_state.job_id)
+    # --- Remote polling: auto-refreshes every 30s while a job is running, no button needed ---
+    @st.fragment(run_every=30 if st.session_state.job_still_running else None)
+    def poll_job_status():
+        if st.session_state.processing_mode != "remote" or not st.session_state.job_id:
+            return
 
+        st.session_state.current_job = get_job(supabase_client, st.session_state.job_id)
         job = st.session_state.current_job
-        if job:
-            if job["status"] in ("pending", "processing"):
-                st.info("Still working on it...")
-            elif job["status"] == "error":
-                st.error(f"Failed: {job['error_message']}")
-            elif job["status"] == "done":
-                video_url = get_presigned_url("outputs", job["output_video_key"])
-                st.divider()
-                st.subheader("Final Video Preview")
-                st.video(video_url)
-                st.markdown(f"[Download video]({video_url})")
+        if not job:
+            return
 
-                if job.get("captions_key") and st.session_state.subtitle_lines is None:
-                    captions_local = os.path.join(TEMP_DIR, "Script_captions.ass")
-                    download_to_file("assets", job["captions_key"], captions_local)
-                    st.session_state.subtitle_lines = subtitles.extract_dialogue_text(captions_local)
-                    st.session_state.captions_local_path = captions_local
+        if job["status"] in ("pending", "processing"):
+            st.info("Still working on it... (checking every 30s)")
+
+        elif job["status"] == "error":
+            st.session_state.job_still_running = False
+            st.error(f"Failed: {job['error_message']}")
+
+        elif job["status"] == "done":
+            st.session_state.job_still_running = False
+            video_url = get_presigned_url("outputs", job["output_video_key"])
+            st.divider()
+            st.subheader("Final Video Preview")
+            st.video(video_url)
+            st.markdown(f"[Download video]({video_url})")
+
+            if job.get("captions_key") and st.session_state.subtitle_lines is None:
+                captions_local = os.path.join(TEMP_DIR, "Script_captions.ass")
+                download_to_file("assets", job["captions_key"], captions_local)
+                st.session_state.subtitle_lines = subtitles.extract_dialogue_text(captions_local)
+                st.session_state.captions_local_path = captions_local
+
+    poll_job_status()
 
     # --- Local video display ---
     if st.session_state.processing_mode == "local" and st.session_state.final_video_path and os.path.exists(st.session_state.final_video_path):
@@ -411,8 +423,9 @@ with tab3:
                     rerender_job_id = create_rerender_job(supabase_client, st.session_state.current_job, edited_key)
                     st.session_state.job_id = rerender_job_id
                     st.session_state.current_job = None
+                    st.session_state.job_still_running = True  # (re)start the auto-poll fragment
                     trigger_worker_run()
 
-                    st.success("Edited subtitles submitted for re-render. Click 'Check Status' above shortly.")
+                    st.success("Edited subtitles submitted for re-render. Status updates automatically above.")
                 except Exception as e:
                     st.error(f"Re-render submit error: {e}")
