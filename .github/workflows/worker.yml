@@ -2,8 +2,8 @@ name: Video Render Worker
 
 on:
   workflow_dispatch:        # triggered instantly from Streamlit via the API
-  schedule:
-    - cron: "*/30 * * * *"  # fallback safety net if a dispatch call fails
+  # schedule:
+  #   - cron: "*/30 * * * *"  # fallback safety net if a dispatch call fails
 
 jobs:
   process-jobs:
