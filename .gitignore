@@ -36,7 +36,7 @@ Thumbs.db
 
 # Chroma / databases (usually generated)
 chroma/
-chromadb/
+chroma_db/
 *.sqlite
 *.db
 
@@ -50,6 +50,8 @@ chromadb/
 node_modules/
 
 #Others
+testing
+temp_processing
 *.mp4
 documents
 *.ass

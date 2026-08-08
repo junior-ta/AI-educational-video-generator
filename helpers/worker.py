@@ -1,24 +1,17 @@
 import os
-import time
 import traceback
 
 import audio
 import subtitles
 import renderer
-from supabase_helper import (
-    get_client,
-    download_to_file,
-    upload_file,
-    update_job,
-    claim_next_pending_job,
-    new_storage_path,
-)
+from supabase_jobs import get_client, update_job, claim_next_pending_job
+from r2_helper import upload_file, download_to_file, new_object_key
 
-POLL_INTERVAL_SECONDS = 10 #time delay between job look-ups
 TEMP_DIR = "worker_temp"
 UPLOADS_BUCKET = "uploads"
 ASSETS_BUCKET = "assets"
 OUTPUTS_BUCKET = "outputs"
+MAX_JOBS_PER_RUN = 5
 
 
 def cleanup(*paths):
@@ -32,67 +25,43 @@ def process_full_job(client, job):
     bg_local = os.path.join(TEMP_DIR, "background.mp4")
     output_local = os.path.join(TEMP_DIR, "final_output.mp4")
 
-    print(f"[{job_id}] Downloading background video...")
-    download_to_file(client, UPLOADS_BUCKET, job["bg_video_path"], bg_local)
-
-    print(f"[{job_id}] Generating audio...")
+    download_to_file(UPLOADS_BUCKET, job["bg_video_key"], bg_local)
     audio.create_podcast_audio(job["script_json"], job["voice_skeptic"], job["voice_expert"])
-
-    print(f"[{job_id}] Generating subtitles...")
     subtitles.generate_subtitles(job["resolution"], "Script_audio.mp3")
+    renderer.render_video(job["resolution"], bg_local, "Script_audio.mp3", "Script_captions.ass", output_file=output_local)
 
-    print(f"[{job_id}] Rendering video...")
-    renderer.render_video(
-        job["resolution"], bg_local, "Script_audio.mp3", "Script_captions.ass", output_file=output_local
-    )
+    audio_key = new_object_key("audio", "Script_audio.mp3")
+    captions_key = new_object_key("captions", "Script_captions.ass")
+    output_key = new_object_key("rendered", "final_video.mp4")
 
-    print(f"[{job_id}] Uploading audio, captions, and video...")
-    audio_dest = new_storage_path("audio", "Script_audio.mp3")
-    captions_dest = new_storage_path("captions", "Script_captions.ass")
-    output_dest = new_storage_path("rendered", "final_video.mp4")
+    upload_file(ASSETS_BUCKET, "Script_audio.mp3", audio_key)
+    upload_file(ASSETS_BUCKET, "Script_captions.ass", captions_key)
+    upload_file(OUTPUTS_BUCKET, output_local, output_key)
 
-    upload_file(client, ASSETS_BUCKET, "Script_audio.mp3", audio_dest)
-    upload_file(client, ASSETS_BUCKET, "Script_captions.ass", captions_dest)
-    upload_file(client, OUTPUTS_BUCKET, output_local, output_dest)
-
-    update_job(
-        client, job_id,
-        status="done",
-        audio_path=audio_dest,
-        captions_path=captions_dest,
-        output_video_path=output_dest,
-    )
-
+    update_job(client, job_id, status="done", audio_key=audio_key, captions_key=captions_key, output_video_key=output_key)
     cleanup(bg_local, output_local, "Script_audio.mp3", "Script_captions.ass")
 
 
 def process_rerender_job(client, job):
-    #Re-render only: reuses existing audio, uses the (edited) captions passed in.
-    
     job_id = job["id"]
     bg_local = os.path.join(TEMP_DIR, "background.mp4")
     audio_local = os.path.join(TEMP_DIR, "Script_audio.mp3")
     captions_local = os.path.join(TEMP_DIR, "Script_captions.ass")
     output_local = os.path.join(TEMP_DIR, "final_output.mp4")
 
-    print(f"[{job_id}] Downloading background video, audio, and edited captions...")
-    download_to_file(client, UPLOADS_BUCKET, job["bg_video_path"], bg_local)
-    download_to_file(client, ASSETS_BUCKET, job["audio_path"], audio_local)
-    download_to_file(client, ASSETS_BUCKET, job["captions_path"], captions_local)
+    download_to_file(UPLOADS_BUCKET, job["bg_video_key"], bg_local)
+    download_to_file(ASSETS_BUCKET, job["audio_key"], audio_local)
+    download_to_file(ASSETS_BUCKET, job["captions_key"], captions_local)
 
-    print(f"[{job_id}] Re-rendering with updated subtitles...")
     renderer.render_video(job["resolution"], bg_local, audio_local, captions_local, output_file=output_local)
 
-    output_dest = new_storage_path("rendered", "final_video.mp4")
-    upload_file(client, OUTPUTS_BUCKET, output_local, output_dest)
-
-    update_job(client, job_id, status="done", output_video_path=output_dest)
-
+    output_key = new_object_key("rendered", "final_video.mp4")
+    upload_file(OUTPUTS_BUCKET, output_local, output_key)
+    update_job(client, job_id, status="done", output_video_key=output_key)
     cleanup(bg_local, audio_local, captions_local, output_local)
 
 
 def process_job(client, job):
-    os.makedirs(TEMP_DIR, exist_ok=True)
     try:
         if job.get("job_type") == "rerender":
             process_rerender_job(client, job)
@@ -106,15 +75,19 @@ def process_job(client, job):
 
 
 def main():
+    os.makedirs(TEMP_DIR, exist_ok=True)
     client = get_client(use_service_key=True)
-    print("Worker s running. Polling for jobs...")
-    while True:
+
+    processed = 0
+    while processed < MAX_JOBS_PER_RUN:
         job = claim_next_pending_job(client)
-        if job:
-            print(f"Claimed {job['job_type']} job {job['id']}")
-            process_job(client, job)
-        else:
-            time.sleep(POLL_INTERVAL_SECONDS)
+        if not job:
+            break
+        print(f"Claimed {job['job_type']} job {job['id']}")
+        process_job(client, job)
+        processed += 1
+
+    print(f"Run complete. Processed {processed} job(s).")
 
 
 if __name__ == "__main__":

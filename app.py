@@ -1,10 +1,13 @@
 import streamlit as st
-import ingest, query_context, scripting, audio, subtitles, renderer
+import helpers.ingest as ingest, helpers.query_context as query_context, helpers.scripting as scripting, helpers.audio as audio, helpers.subtitles as subtitles, helpers.renderer as renderer
 import os
 import json
 import shutil
 import edge_tts
 import asyncio
+from helpers.supabase_jobs import get_client, create_full_job, create_rerender_job, get_job, update_job
+from helpers.r2_helper import upload_file, download_to_file, get_presigned_url, new_object_key
+from helpers.github_trigger import trigger_worker_run
 
 # --- Configuration ---
 TEMP_DIR = "temp_processing"
@@ -189,147 +192,191 @@ with tab2:
 #  TAB 3: Rendering
 ######################################
 
+LOCAL_PROCESSING_LIMIT_MB = 10  
+supabase_client = get_client()
+
 with tab3:
     col1, col2 = st.columns([1, 1])
 
     with col1:
         st.subheader("1. Settings 🛠️")
         bg_video = st.file_uploader("Upload Background Video (gameplay, scenery)", type=["mp4", "mov"])
-        resolution= st.selectbox("Resolution of the Clip Uploaded", ["1920x1080", "1280x720"])
-        
+        resolution = st.selectbox("Resolution of the Clip Uploaded", ["1920x1080", "1280x720"])
 
     with col2:
-        actual_voiceS="en-US-GuyNeural" 
-        actual_voiceE="en-US-AriaNeural"       
-        
+        actual_voiceS = "en-US-GuyNeural"
+        actual_voiceE = "en-US-AriaNeural"
+
         if 'sample_audioS' not in st.session_state:
             st.session_state.sample_audioS = asyncio.run(
                 audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz"))
-        
+
         if 'sample_audioE' not in st.session_state:
             st.session_state.sample_audioE = asyncio.run(
                 audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz"))
-        
 
-        voiceS= st.selectbox("Choose Skeptic's voice", ["en-US-GuyNeural", "en-US-AriaNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
-        if  actual_voiceS != voiceS:
-            actual_voiceS= voiceS
+        voiceS = st.selectbox("Choose Skeptic's voice", ["en-US-GuyNeural", "en-US-AriaNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
+        if actual_voiceS != voiceS:
+            actual_voiceS = voiceS
             st.session_state.sample_audioS = asyncio.run(
                 audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz")
             )
         else:
             st.session_state.sample_audioS = asyncio.run(
-                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz"))            
+                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz"))
         st.audio(st.session_state.sample_audioS, format="audio/mp3")
 
-        voiceE= st.selectbox("AI Expert's voice", ["en-US-AriaNeural", "en-US-GuyNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
-        if  actual_voiceE != voiceE:
-            actual_voiceE= voiceE
+        voiceE = st.selectbox("AI Expert's voice", ["en-US-AriaNeural", "en-US-GuyNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
+        if actual_voiceE != voiceE:
+            actual_voiceE = voiceE
             st.session_state.sample_audioE = asyncio.run(
                 audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz")
             )
         else:
             st.session_state.sample_audioE = asyncio.run(
-                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz"))            
+                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz"))
         st.audio(st.session_state.sample_audioE, format="audio/mp3")
 
     ##.......parameters state backing....
-    if "last_generation_params" not in st.session_state:
-        st.session_state.last_generation_params = {}
+    for key, default in [
+        ("last_generation_params", {}),
+        ("final_video_path", None),
+        ("subtitle_lines", None),
+        ("subtitles_edited", False),
+        ("show_subtitle_editor", False),
+        ("processing_mode", None),      # "local" or "remote"
+        ("job_id", None),
+        ("current_job", None),
+        ("captions_local_path", None),
+    ]:
+        if key not in st.session_state:
+            st.session_state[key] = default
 
-    if "final_video_path" not in st.session_state:
-        st.session_state.final_video_path = None
-
-    if "subtitle_lines" not in st.session_state:
-        st.session_state.subtitle_lines = None
-
-    if "subtitles_edited" not in st.session_state:
-        st.session_state.subtitles_edited = False
-
-    if "show_subtitle_editor" not in st.session_state:
-        st.session_state.show_subtitle_editor = False
-
-
-
-    # To check against history
+    # To check against history (avoids re-rendering on an unchanged click)
     current_params = {
         "bg_name": bg_video.name if bg_video else None,
         "script_content": str(st.session_state.script_json) if st.session_state.script_json else None,
         "voiceS": voiceS,
         "voiceE": voiceE,
         "resolution": resolution,
-        "subtitles": st.session_state.subtitles_edited
+        "subtitles": st.session_state.subtitles_edited,
     }
-
 
     st.subheader("2. 🎬Output")
     if st.button("Generate Video"):
-        if not st.session_state.script_json or st.session_state.script_json==None:
+        if not st.session_state.script_json or st.session_state.script_json is None:
             st.error("Please generate a script in Tab 1 first.")
         elif not bg_video:
             st.error("Please upload a background video and choose a resolution.")
+        elif st.session_state.final_video_path and st.session_state.last_generation_params == current_params:
+            st.info("no change made!")
         else:
-            if st.session_state.final_video_path and st.session_state.last_generation_params == current_params:
-                st.info("no change made!")
-            else:
+            size_mb = bg_video.size / (1024 * 1024)
+
+            if size_mb <= LOCAL_PROCESSING_LIMIT_MB:
+                # --- LOCAL PATH: your original synchronous pipeline, unchanged ---
+                st.session_state.processing_mode = "local"
                 status = st.empty()
                 progress = st.progress(0)
-                
+
                 try:
                     # 1. Save Background Video to disk temporarily
                     bg_path = os.path.join(TEMP_DIR, "background.mp4")
                     with open(bg_path, "wb") as f:
                         f.write(bg_video.getbuffer())
-                    
+
                     # 2. Audio Generation
                     status.write("Generating Audio ...")
-                    # We need to make create_podcast_audio synchronous or run it properly
-                    # Assuming audio.py saves to 'final_audio.mp3'
                     audio.create_podcast_audio(st.session_state.script_json, voiceS, voiceE)
                     progress.progress(30)
-                    
+
                     # 3. Subtitles
                     if not st.session_state.subtitles_edited:
                         status.write("Generating Subtitles ...")
                         subtitles.generate_subtitles(resolution, "Script_audio.mp3")
-                        st.session_state.subtitle_lines=subtitles.extract_dialogue_text("Script_captions.ass")
                     else:
                         status.write("Using edited subtitles ...")
-                        st.session_state.subtitle_lines=subtitles.extract_dialogue_text("Script_captions.ass")
-
+                    st.session_state.subtitle_lines = subtitles.extract_dialogue_text("Script_captions.ass")
+                    st.session_state.captions_local_path = "Script_captions.ass"
                     progress.progress(60)
-                    
+
                     # 4. Rendering
                     status.write("Rendering Video ...")
                     output_video = "final_output.mp4"
                     renderer.render_video(resolution, bg_path, "Script_audio.mp3", "Script_captions.ass", output_file=output_video)
                     progress.progress(100)
-                    
                     status.success("Rendering Complete!")
 
-                    # 4.2 Save parameters
-                    st.session_state.last_generation_params= current_params
-                    st.session_state.final_video_path= output_video
-                
+                    st.session_state.last_generation_params = current_params
+                    st.session_state.final_video_path = output_video
+
                 except Exception as e:
                     st.error(f"Processing Error: {e}")
 
-    # 5. Display
-    if st.session_state.final_video_path and os.path.exists(st.session_state.final_video_path):
+            else:
+                # --- REMOTE PATH: R2 upload + Supabase job + instant GitHub Actions trigger ---
+                st.session_state.processing_mode = "remote"
+                try:
+                    bg_local = os.path.join(TEMP_DIR, "background.mp4")
+                    with open(bg_local, "wb") as f:
+                        f.write(bg_video.getbuffer())
+
+                    bg_key = new_object_key("uploads", bg_video.name)
+                    upload_file("uploads", bg_local, bg_key)
+
+                    job_id = create_full_job(
+                        supabase_client, st.session_state.script_json, voiceS, voiceE, resolution, bg_key
+                    )
+                    st.session_state.job_id = job_id
+                    st.session_state.current_job = None
+                    st.session_state.last_generation_params = current_params
+
+                    if trigger_worker_run():
+                        st.info(f"Background video is {size_mb:.0f}MB — rendering remotely. Click 'Check Status' below shortly.")
+                    else:
+                        st.warning("Job queued, but the instant trigger failed — it'll run within 30 min via the fallback schedule.")
+                except Exception as e:
+                    st.error(f"Upload/Submit Error: {e}")
+
+    # --- Remote polling ---
+    if st.session_state.processing_mode == "remote" and st.session_state.job_id:
+        if st.button("Check Status"):
+            st.session_state.current_job = get_job(supabase_client, st.session_state.job_id)
+
+        job = st.session_state.current_job
+        if job:
+            if job["status"] in ("pending", "processing"):
+                st.info("Still working on it...")
+            elif job["status"] == "error":
+                st.error(f"Failed: {job['error_message']}")
+            elif job["status"] == "done":
+                video_url = get_presigned_url("outputs", job["output_video_key"])
+                st.divider()
+                st.subheader("Final Video Preview")
+                st.video(video_url)
+                st.markdown(f"[Download video]({video_url})")
+
+                if job.get("captions_key") and st.session_state.subtitle_lines is None:
+                    captions_local = os.path.join(TEMP_DIR, "Script_captions.ass")
+                    download_to_file("assets", job["captions_key"], captions_local)
+                    st.session_state.subtitle_lines = subtitles.extract_dialogue_text(captions_local)
+                    st.session_state.captions_local_path = captions_local
+
+    # --- Local video display ---
+    if st.session_state.processing_mode == "local" and st.session_state.final_video_path and os.path.exists(st.session_state.final_video_path):
         st.divider()
         st.subheader("Final Video Preview")
         st.video(st.session_state.final_video_path)
-        
-        # 6. Download Button
+
         with open(st.session_state.final_video_path, "rb") as file:
             st.download_button(
                 label="Download Video",
                 data=file,
                 file_name="video_generated.mp4",
                 mime="video/mp4"
-            )  
+            )
 
-    # 7. Subtitles modification         
+    # --- Subtitle editing (same UI either way; save action differs by mode) ---
     st.divider()
 
     if st.session_state.subtitle_lines:
@@ -339,7 +386,6 @@ with tab3:
         st.info("Generate a video first to enable subtitle editing.")
 
     if st.session_state.show_subtitle_editor:
-
         edited_text = st.text_area(
             "Edit subtitles (one line per caption)",
             value="\n".join(st.session_state.subtitle_lines),
@@ -348,16 +394,25 @@ with tab3:
 
         if st.button("💾 Save Subtitle Changes"):
             updated_lines = edited_text.split("\n")
-
-            subtitles.rewrite_ass_text(
-                "Script_captions.ass",
-                updated_lines
-            )
+            subtitles.rewrite_ass_text(st.session_state.captions_local_path, updated_lines)
 
             st.session_state.subtitle_lines = updated_lines
             st.session_state.subtitles_edited = True
             st.session_state.show_subtitle_editor = False
 
-            st.success(
-                "Subtitles saved! Changes will be applied next time you click Generate Video."
-            )
+            if st.session_state.processing_mode == "local":
+                st.success("Subtitles saved! Changes will be applied next time you click Generate Video.")
+            else:
+                # Remote: upload edited captions to R2, submit a lightweight 'rerender' job
+                try:
+                    edited_key = new_object_key("captions", "Script_captions_edited.ass")
+                    upload_file("assets", st.session_state.captions_local_path, edited_key)
+
+                    rerender_job_id = create_rerender_job(supabase_client, st.session_state.current_job, edited_key)
+                    st.session_state.job_id = rerender_job_id
+                    st.session_state.current_job = None
+                    trigger_worker_run()
+
+                    st.success("Edited subtitles submitted for re-render. Click 'Check Status' above shortly.")
+                except Exception as e:
+                    st.error(f"Re-render submit error: {e}")

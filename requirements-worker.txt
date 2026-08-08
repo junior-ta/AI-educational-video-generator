@@ -1,0 +1,12 @@
+streamlit
+openai
+pillow
+edge-tts
+pydub
+stable-ts
+protobuf
+
+supabase
+boto3
+requests
+python-dotenv
