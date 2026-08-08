@@ -352,10 +352,10 @@ with tab3:
             return
 
         if job["status"] in ("pending", "processing"):
-            st.info("Still working on it...")
+            st.info("Still working on it... [Takes 3-6 minutes for longer videos]")
+            return
 
         #Job terminated here
-
         was_running = st.session_state.job_still_running
         st.session_state.job_still_running = False
 
