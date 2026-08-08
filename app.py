@@ -11,8 +11,7 @@ from helpers.github_trigger import trigger_worker_run
 
 # --- Configuration ---
 TEMP_DIR = "temp_processing"
-if not os.path.exists(TEMP_DIR):
-    os.makedirs(TEMP_DIR)
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 st.title("PodTok")
 st.title("🎥 AI Educational Video Maker")
