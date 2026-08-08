@@ -76,6 +76,7 @@ class OpenAIClient(ModelProvider):
 
 SYSTEM_PROMPT = """
 You are a scriptwriter for a educational podcast. You must generate an informal conversation dialogue between two personas based on the provided Topic and Context.
+You must use only the relevant information from the context to answer the topic, not all of it.
 
 **The Personas:**
 1. **The Skeptic:** Casual, questioning, slightly cynical. Doesn't buy into hype. Uses simple and gen z language.
