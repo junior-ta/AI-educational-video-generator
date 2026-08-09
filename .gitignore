@@ -40,11 +40,6 @@ chroma_db/
 *.sqlite
 *.db
 
-# Audio artifacts (optional)
-*.wav
-*.mp3
-*.m4a
-*.flac
 
 # Node (if any)
 node_modules/
@@ -52,6 +47,4 @@ node_modules/
 #Others
 testing
 temp_processing
-*.mp4
 documents
-*.ass

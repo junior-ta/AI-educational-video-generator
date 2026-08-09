@@ -209,32 +209,32 @@ with tab3:
 
         if 'sample_audioS' not in st.session_state:
             st.session_state.sample_audioS = asyncio.run(
-                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz"))
+                audio.tts_to_bytes("I love learning and technology!", actual_voiceS, rate="+17%", pitch="+3Hz"))
 
         if 'sample_audioE' not in st.session_state:
             st.session_state.sample_audioE = asyncio.run(
-                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz"))
+                audio.tts_to_bytes("I love learning and technology!", actual_voiceE, rate="+10%", pitch="+0Hz"))
 
         voiceS = st.selectbox("Choose Skeptic's voice", ["en-US-GuyNeural", "en-US-AriaNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
         if actual_voiceS != voiceS:
             actual_voiceS = voiceS
             st.session_state.sample_audioS = asyncio.run(
-                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz")
+                audio.tts_to_bytes("I love learning and technology!", actual_voiceS, rate="+17%", pitch="+3Hz")
             )
         else:
             st.session_state.sample_audioS = asyncio.run(
-                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceS, rate="+17%", pitch="+3Hz"))
+                audio.tts_to_bytes("I love learning and technology!", actual_voiceS, rate="+17%", pitch="+3Hz"))
         st.audio(st.session_state.sample_audioS, format="audio/mp3")
 
         voiceE = st.selectbox("AI Expert's voice", ["en-US-AriaNeural", "en-US-GuyNeural", "en-US-ChristopherNeural", "en-US-EricNeural"])
         if actual_voiceE != voiceE:
             actual_voiceE = voiceE
             st.session_state.sample_audioE = asyncio.run(
-                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz")
+                audio.tts_to_bytes("I love learning and technology!", actual_voiceE, rate="+10%", pitch="+0Hz")
             )
         else:
             st.session_state.sample_audioE = asyncio.run(
-                audio.tts_to_bytes("I am an IBM Z ambassador and I love mainframes!", actual_voiceE, rate="+10%", pitch="+0Hz"))
+                audio.tts_to_bytes("I love learning and technology!", actual_voiceE, rate="+10%", pitch="+0Hz"))
         st.audio(st.session_state.sample_audioE, format="audio/mp3")
 
     ##.......parameters state backing....
