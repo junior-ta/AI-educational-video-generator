@@ -12,7 +12,7 @@ ready for Download.
 
 <br>
 
-[![Watch the Demo](demo/Demo_thumbnail.png)](demo/PodTok_product_demo.mp4)
+[![Watch the Demo](demo/Demo_thumbnail.png)](https://www.youtube.com/watch?v=guvwshlTDBY)
 
 <br>
 
