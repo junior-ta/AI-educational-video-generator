@@ -13,7 +13,7 @@ ready for Download.
 <br>
 
 [![Watch the Demo](demo/Demo_thumbnail.png)](https://www.youtube.com/watch?v=guvwshlTDBY)
-
+Watch a sample output (has been edited with memes): https://youtube.com/shorts/x6D7zJ55UxU
 <br>
 
 ## How it works
